@@ -1,21 +1,10 @@
-# Stock Breakout Bot IDX — Dependencies
-# Install: pip install -r requirements.txt
-
-# Data & Analisis
-yfinance==0.2.51
-pandas==2.2.3
-pandas-ta==0.3.14b
-numpy==1.26.4
-
-# AI
-anthropic==0.49.0
-
-# Telegram
-requests==2.32.3
-
-# Scheduler
-APScheduler==3.10.4
-pytz==2025.1
-
-# Env & Utils
-python-dotenv==1.1.0
+yfinance
+pandas
+pandas-ta
+numpy
+anthropic
+requests
+APScheduler
+pytz
+python-dotenv
+groq
