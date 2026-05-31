@@ -190,7 +190,7 @@ def handle_scan(chat_id, tickers=None):
     target = tickers if tickers else WATCHLIST
     total  = len(target)
 
-    reply(chat_id, f"🔍 Memulai scan <b>{total} saham</b>...\nEstimasi: ~{total * 3} detik.")
+    reply(chat_id, f"🔍 Memulai scan <b>{total} saham</b>...\nBot akan diam selama proses, hasil dikirim setelah selesai.")
 
     results = []
     for i, t in enumerate(target, 1):
@@ -198,7 +198,9 @@ def handle_scan(chat_id, tickers=None):
         if not ticker.endswith(".JK"):
             ticker += ".JK"
 
-        if i == 1 or i % 50 == 0 or i == total:             reply(chat_id, f"⏳ Progress: {i}/{total} saham diproses...")
+        # Update progress setiap 50 saham saja - hindari flood
+        if i % 50 == 0:
+            reply(chat_id, f"⏳ Progress: {i}/{total} saham diproses...")
 
         df = fetch_ohlcv(ticker)
         if df is None:
@@ -296,7 +298,7 @@ def handle_help(chat_id):
 
 /cek BBCA — Analisa satu saham
 /cek BBCA TLKM ANTM — Analisa beberapa saham
-/scan — Scan semua watchlist (239 saham)
+/scan — Scan semua watchlist
 /scan BBCA TLKM — Scan saham tertentu
 /sektor — Lihat semua sektor tersedia
 /sektor energi — Scan saham sektor energi
