@@ -66,6 +66,23 @@ def reply(chat_id, text):
         logger.error(f"Reply error: {e}")
 
 
+def send_inline_keyboard(chat_id, text, buttons):
+    try:
+        requests.post(
+            f"{API}/sendMessage",
+            json={
+                "chat_id": chat_id,
+                "text": text,
+                "parse_mode": "HTML",
+                "disable_web_page_preview": True,
+                "reply_markup": {"inline_keyboard": buttons},
+            },
+            timeout=15,
+        )
+    except Exception as e:
+        logger.error(f"Inline keyboard error: {e}")
+
+
 def format_result(tech, ai):
     ticker  = ai.get("ticker", "")
     score   = ai.get("score", 0)
@@ -127,7 +144,7 @@ def format_result(tech, ai):
         f"  • 52W High: {sr.get('high_52w', '-')}",
         "",
         "─────────────────────────────",
-        "🎯 <b>ENTRY & RISK MANAGEMENT</b>",
+        "🎯 <b>ENTRY &amp; RISK MANAGEMENT</b>",
         f"  • Entry Zone: {entry.get('entry_range_low')} — {entry.get('entry_range_high')}",
         f"  • Stop Loss: {rm.get('stop_loss')} ({rm.get('stop_loss_pct')}%)",
         f"  • Target 1: {rm.get('target_1')} (+{rm.get('target_1_pct')}%)",
@@ -198,7 +215,6 @@ def handle_scan(chat_id, tickers=None):
         if not ticker.endswith(".JK"):
             ticker += ".JK"
 
-        # Update progress setiap 50 saham saja - hindari flood
         if i % 50 == 0:
             reply(chat_id, f"⏳ Progress: {i}/{total} saham diproses...")
 
@@ -293,66 +309,85 @@ def handle_watchlist(chat_id):
     reply(chat_id, "\n".join(lines))
 
 
-def handle_sektor(chat_id, nama_sektor):
-    if not nama_sektor:
-        sektor_list = "\n".join([f"  • /sektor {s}" for s in SECTORS.keys()])
-        reply(chat_id,
-            f"📂 <b>DAFTAR SEKTOR TERSEDIA</b>\n\n{sektor_list}\n\n"
-            f"Contoh: <code>/sektor energi</code>"
-        )
-        return
-
-    nama_sektor = nama_sektor.lower().strip()
-
-    if nama_sektor not in SECTORS:
-        sektor_list = ", ".join(SECTORS.keys())
-        reply(chat_id,
-            f"❌ Sektor <b>{nama_sektor}</b> tidak ditemukan.\n\n"
-            f"Tersedia: {sektor_list}"
-        )
-        return
-
-    tickers = SECTORS[nama_sektor]
-    reply(chat_id,
-        f"🔍 Scanning sektor <b>{nama_sektor.upper()}</b>\n"
-        f"📊 Total: {len(tickers)} saham\n"
-        f"⏱ Estimasi: ~{len(tickers) * 3} detik..."
-    )
-    threading.Thread(target=handle_scan, args=(chat_id, tickers), daemon=True).start()
-
-
-
 def handle_help(chat_id):
-    msg = """🤖 <b>STOCK BOT IDX — MENU</b>
+    msg = """╔════════════════════════════╗
+║  🤖  <b>STOCK BOT IDX</b>  📈        ║
+║  <i>Powered by Groq AI</i>           ║
+╚════════════════════════════╝
 
-/cek BBCA — Analisa satu saham
-/cek BBCA TLKM ANTM — Analisa beberapa saham
-/scan — Scan semua watchlist (239 saham)
-/scan BBCA TLKM — Scan saham tertentu
-/sektor — Lihat semua sektor tersedia
-/sektor energi — Scan saham sektor energi
-/watchlist — Lihat daftar semua saham
-/help — Tampilkan menu ini
+━━━━━━  📌 <b>PERINTAH UTAMA</b>  ━━━━━━
 
-<b>Sektor tersedia:</b>
-konglomerat | energi | tambang | properti
-infrastruktur | perkapalan | teknologi
-consumer | kesehatan | agribisnis
-telko | retail | media | ev | catalyst
+🔍 <b>/cek</b> <code>BBCA</code>
+    └ Analisa mendalam satu saham
 
-<i>Contoh:</i>
-• /cek BBCA
-• /sektor catalyst
-• /scan ANTM MDKA AMMN
+🔍 <b>/cek</b> <code>BBCA TLKM ANTM</code>
+    └ Analisa beberapa saham sekaligus
 
-⚠️ <i>Bukan rekomendasi investasi. DYOR!</i>"""
+📡 <b>/scan</b>
+    └ Scan seluruh watchlist (239 saham)
+
+📡 <b>/scan</b> <code>BBCA TLKM</code>
+    └ Scan saham pilihan
+
+🏭 <b>/sektor</b>
+    └ Lihat semua sektor tersedia
+
+🏭 <b>/sektor</b> <code>energi</code>
+    └ Scan saham dalam sektor tertentu
+
+📋 <b>/watchlist</b>
+    └ Lihat daftar semua saham
+
+❓ <b>/help</b>
+    └ Tampilkan menu ini
+
+━━━━━━  🏭 <b>SEKTOR TERSEDIA</b>  ━━━━━━
+
+🏢 Konglomerat   ⚡ Energi
+⛏️ Tambang        🏗️ Properti
+🛣️ Infrastruktur  🚢 Perkapalan
+💻 Teknologi     🛒 Consumer
+🏥 Kesehatan     🌾 Agribisnis
+📡 Telko         🏪 Retail
+📺 Media         🚗 EV
+🔮 Catalyst
+
+━━━━━━  💡 <b>CONTOH PENGGUNAAN</b>  ━━━━━━
+
+▶️ <code>/cek BBCA</code>
+▶️ <code>/sektor catalyst</code>
+▶️ <code>/scan ANTM MDKA AMMN</code>
+▶️ <code>/sektor tambang</code>
+
+╔════════════════════════════╗
+║ ⚠️ <i>Bukan rekomendasi investasi</i> ║
+║    <i>Lakukan riset mandiri. DYOR!</i> ║
+╚════════════════════════════╝"""
     reply(chat_id, msg)
-
 
 
 def process_update(update):
     global offset
     offset = update["update_id"] + 1
+
+    # Handle tombol inline
+    callback = update.get("callback_query", {})
+    if callback:
+        cid   = str(callback.get("message", {}).get("chat", {}).get("id", ""))
+        data  = callback.get("data", "")
+        cb_id = callback.get("id", "")
+        requests.post(f"{API}/answerCallbackQuery", json={"callback_query_id": cb_id}, timeout=5)
+        if data == "menu_cek":
+            reply(cid, "🔍 Ketik perintah:\n<code>/cek BBCA</code>\natau\n<code>/cek BBCA TLKM ANTM</code>")
+        elif data == "menu_scan":
+            threading.Thread(target=handle_scan, args=(cid, None), daemon=True).start()
+        elif data == "menu_sektor":
+            handle_sektor(cid, "")
+        elif data == "menu_watchlist":
+            handle_watchlist(cid)
+        elif data == "menu_help":
+            handle_help(cid)
+        return
 
     msg = update.get("message", {})
     if not msg:
@@ -370,7 +405,37 @@ def process_update(update):
     cmd   = parts[0].lower().split("@")[0]
 
     if cmd == "/start":
-        handle_help(chat_id)
+        welcome = """╔═══════════════════════════╗
+║  🤖  <b>STOCK BOT IDX</b>  📈      ║
+║  <i>Powered by Groq AI</i>          ║
+╚═══════════════════════════╝
+
+👋 <b>Selamat datang!</b>
+
+Bot ini membantu kamu menganalisa saham IDX secara otomatis menggunakan AI dan indikator teknikal.
+
+✨ <b>Yang bisa bot ini lakukan:</b>
+  📊 Analisa teknikal mendalam
+  📡 Scan breakout &amp; sinyal
+  🏭 Filter per sektor saham
+  🎯 Entry, SL &amp; Target otomatis
+
+⚡ <i>Pilih menu di bawah untuk mulai:</i>"""
+
+        buttons = [
+            [
+                {"text": "🔍 Cek Saham", "callback_data": "menu_cek"},
+                {"text": "📡 Scan Watchlist", "callback_data": "menu_scan"},
+            ],
+            [
+                {"text": "🏭 Lihat Sektor", "callback_data": "menu_sektor"},
+                {"text": "📋 Watchlist", "callback_data": "menu_watchlist"},
+            ],
+            [
+                {"text": "❓ Bantuan / Help", "callback_data": "menu_help"},
+            ],
+        ]
+        send_inline_keyboard(chat_id, welcome, buttons)
 
     elif cmd == "/help":
         handle_help(chat_id)
