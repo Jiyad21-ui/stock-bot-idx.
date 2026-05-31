@@ -31,7 +31,7 @@ def build_analysis_prompt(data: dict) -> str:
     bo      = data.get("breakout", {})
     atr     = data.get("atr", {})
 
-    prompt = f"""
+    prompt = fa
 Kamu adalah analis teknikal saham senior spesialis pasar IDX Indonesia.
 Jawab HANYA dengan JSON valid, tanpa teks apapun di luar JSON.
 
@@ -109,7 +109,7 @@ def analyze_with_ai(data: dict) -> Optional[dict]:
         prompt = build_analysis_prompt(data)
 
         response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=[
                 {
                     "role": "system",
