@@ -321,63 +321,33 @@ def handle_sektor(chat_id, nama_sektor):
     threading.Thread(target=handle_scan, args=(chat_id, tickers), daemon=True).start()
 
 
-def handle_watchlist(chat_id):
-    lines = ["📋 <b>WATCHLIST AKTIF</b>", ""]
-    for i, t in enumerate(WATCHLIST, 1):
-        lines.append(f"{i}. {t}")
-    lines += ["", f"Total: {len(WATCHLIST)} saham"]
-    reply(chat_id, "\n".join(lines))
 
-
-🤖 <b>SAHAM ALERT BOT — MENU</b>
-
-📊 <b>Analisis Saham</b>
+def handle_help(chat_id):
+    msg = """🤖 <b>STOCK BOT IDX — MENU</b>
 
 /cek BBCA — Analisa satu saham
 /cek BBCA TLKM ANTM — Analisa beberapa saham
-
-🔍 <b>Scanner Saham</b>
-
-/scan — Scan seluruh watchlist
+/scan — Scan semua watchlist (239 saham)
 /scan BBCA TLKM — Scan saham tertentu
+/sektor — Lihat semua sektor tersedia
+/sektor energi — Scan saham sektor energi
+/watchlist — Lihat daftar semua saham
+/help — Tampilkan menu ini
 
-🏭 <b>Scanner Sektor</b>
+<b>Sektor tersedia:</b>
+konglomerat | energi | tambang | properti
+infrastruktur | perkapalan | teknologi
+consumer | kesehatan | agribisnis
+telko | retail | media | ev | catalyst
 
-/sektor — Lihat daftar sektor
-/sektor energi — Scan sektor energi
-
-📋 <b>Lainnya</b>
-
-/watchlist — Daftar saham yang dipantau
-/help — Tampilkan bantuan
-
-<b>Sektor Tersedia:</b>
-
-• konglomerat
-• energi
-• tambang
-• properti
-• infrastruktur
-• perkapalan
-• teknologi
-• consumer
-• kesehatan
-• agribisnis
-• telko
-• retail
-• media
-• ev
-• catalyst
-
-<b>Contoh Penggunaan:</b>
-
+<i>Contoh:</i>
 • /cek BBCA
-• /cek BBCA TLKM ANTM
 • /sektor catalyst
 • /scan ANTM MDKA AMMN
 
 ⚠️ <i>Bukan rekomendasi investasi. DYOR!</i>"""
     reply(chat_id, msg)
+
 
 
 def process_update(update):
