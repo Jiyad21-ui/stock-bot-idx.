@@ -198,7 +198,7 @@ def handle_scan(chat_id, tickers=None):
         if not ticker.endswith(".JK"):
             ticker += ".JK"
 
-        if i == 1 or i % 20 == 0 or i == total:     reply(chat_id, f"⏳ [{i}/{total}] scanning... mohon tunggu")
+        if i == 1 or i % 50 == 0 or i == total:             reply(chat_id, f"⏳ Progress: {i}/{total} saham diproses...")
 
         df = fetch_ohlcv(ticker)
         if df is None:
