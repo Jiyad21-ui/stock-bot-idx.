@@ -293,26 +293,86 @@ def handle_watchlist(chat_id):
     reply(chat_id, "\n".join(lines))
 
 
-def handle_help(chat_id):
-    msg = """🤖 <b>STOCK BOT IDX — MENU</b>
+def handle_sektor(chat_id, nama_sektor):
+    if not nama_sektor:
+        sektor_list = "\n".join([f"  • /sektor {s}" for s in SECTORS.keys()])
+        reply(chat_id,
+            f"📂 <b>DAFTAR SEKTOR TERSEDIA</b>\n\n{sektor_list}\n\n"
+            f"Contoh: <code>/sektor energi</code>"
+        )
+        return
+
+    nama_sektor = nama_sektor.lower().strip()
+
+    if nama_sektor not in SECTORS:
+        sektor_list = ", ".join(SECTORS.keys())
+        reply(chat_id,
+            f"❌ Sektor <b>{nama_sektor}</b> tidak ditemukan.\n\n"
+            f"Tersedia: {sektor_list}"
+        )
+        return
+
+    tickers = SECTORS[nama_sektor]
+    reply(chat_id,
+        f"🔍 Scanning sektor <b>{nama_sektor.upper()}</b>\n"
+        f"📊 Total: {len(tickers)} saham\n"
+        f"⏱ Estimasi: ~{len(tickers) * 3} detik..."
+    )
+    threading.Thread(target=handle_scan, args=(chat_id, tickers), daemon=True).start()
+
+
+def handle_watchlist(chat_id):
+    lines = ["📋 <b>WATCHLIST AKTIF</b>", ""]
+    for i, t in enumerate(WATCHLIST, 1):
+        lines.append(f"{i}. {t}")
+    lines += ["", f"Total: {len(WATCHLIST)} saham"]
+    reply(chat_id, "\n".join(lines))
+
+
+🤖 <b>SAHAM ALERT BOT — MENU</b>
+
+📊 <b>Analisis Saham</b>
 
 /cek BBCA — Analisa satu saham
 /cek BBCA TLKM ANTM — Analisa beberapa saham
-/scan — Scan semua watchlist
+
+🔍 <b>Scanner Saham</b>
+
+/scan — Scan seluruh watchlist
 /scan BBCA TLKM — Scan saham tertentu
-/sektor — Lihat semua sektor tersedia
-/sektor energi — Scan saham sektor energi
-/watchlist — Lihat daftar semua saham
-/help — Tampilkan menu ini
 
-<b>Sektor tersedia:</b>
-konglomerat | energi | tambang | properti
-infrastruktur | perkapalan | teknologi
-consumer | kesehatan | agribisnis
-telko | retail | media | ev | catalyst
+🏭 <b>Scanner Sektor</b>
 
-<i>Contoh:</i>
+/sektor — Lihat daftar sektor
+/sektor energi — Scan sektor energi
+
+📋 <b>Lainnya</b>
+
+/watchlist — Daftar saham yang dipantau
+/help — Tampilkan bantuan
+
+<b>Sektor Tersedia:</b>
+
+• konglomerat
+• energi
+• tambang
+• properti
+• infrastruktur
+• perkapalan
+• teknologi
+• consumer
+• kesehatan
+• agribisnis
+• telko
+• retail
+• media
+• ev
+• catalyst
+
+<b>Contoh Penggunaan:</b>
+
 • /cek BBCA
+• /cek BBCA TLKM ANTM
 • /sektor catalyst
 • /scan ANTM MDKA AMMN
 
