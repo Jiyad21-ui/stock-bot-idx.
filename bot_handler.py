@@ -268,7 +268,7 @@ def handle_scan(chat_id, tickers=None):
 
     time.sleep(2)
     for r in results:
-        if r["score"] >= 65:
+        if r["score"] >= 55:
             msg = format_result(r["tech"], r["ai"])
             reply(chat_id, msg)
             time.sleep(2)
