@@ -29,6 +29,7 @@ from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, WATCHLIST, SECTORS
 from data_fetcher import fetch_ohlcv
 from technical_analysis import compute_indicators
 from ai_scorer import analyze_with_ai
+from sector_info import get_sector_info_message, get_all_sectors_list
 
 API = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
 offset = 0
@@ -278,7 +279,8 @@ def handle_sektor(chat_id, nama_sektor):
         sektor_list = "\n".join([f"  • /sektor {s}" for s in SECTORS.keys()])
         reply(chat_id,
             f"📂 <b>DAFTAR SEKTOR TERSEDIA</b>\n\n{sektor_list}\n\n"
-            f"Contoh: <code>/sektor energi</code>"
+            f"Contoh: <code>/sektor energi</code>\n"
+            f"Info emiten: <code>/info energi</code>"
         )
         return
 
@@ -299,6 +301,16 @@ def handle_sektor(chat_id, nama_sektor):
         f"⏱ Estimasi: ~{len(tickers) * 3} detik..."
     )
     threading.Thread(target=handle_scan, args=(chat_id, tickers), daemon=True).start()
+
+
+def handle_info(chat_id, nama_sektor):
+    if not nama_sektor:
+        msg = get_all_sectors_list()
+        reply(chat_id, msg)
+        return
+    nama_sektor = nama_sektor.lower().strip()
+    msg = get_sector_info_message(nama_sektor)
+    reply(chat_id, msg)
 
 
 def handle_watchlist(chat_id):
@@ -324,40 +336,43 @@ def handle_help(chat_id):
     └ Analisa beberapa saham sekaligus
 
 📡 <b>/scan</b>
-    └ Scan seluruh watchlist (239 saham)
+    └ Scan seluruh watchlist
 
 📡 <b>/scan</b> <code>BBCA TLKM</code>
     └ Scan saham pilihan
 
-🏭 <b>/sektor</b>
-    └ Lihat semua sektor tersedia
-
 🏭 <b>/sektor</b> <code>energi</code>
-    └ Scan saham dalam sektor tertentu
+    └ Scan breakout per sektor
+
+📂 <b>/info</b>
+    └ Lihat daftar semua sektor
+
+📂 <b>/info</b> <code>konglomerat</code>
+    └ Detail emiten per grup konglomerat
+
+📂 <b>/info</b> <code>catalyst</code>
+    └ Narasi &amp; katalis saham panas 2026
 
 📋 <b>/watchlist</b>
     └ Lihat daftar semua saham
 
-❓ <b>/help</b>
-    └ Tampilkan menu ini
-
 ━━━━━━  🏭 <b>SEKTOR TERSEDIA</b>  ━━━━━━
 
-🏢 Konglomerat   ⚡ Energi
-⛏️ Tambang        🏗️ Properti
-🛣️ Infrastruktur  🚢 Perkapalan
-💻 Teknologi     🛒 Consumer
-🏥 Kesehatan     🌾 Agribisnis
-📡 Telko         🏪 Retail
-📺 Media         🚗 EV
-🔮 Catalyst
+🏢 konglomerat   ⚡ energi
+⛏️ tambang        🏠 properti
+🏗️ infrastruktur  ⚓ perkapalan
+💻 teknologi     🛒 consumer
+🏥 kesehatan     🌴 agribisnis
+📡 telko         🛍️ retail
+📺 media         🔋 ev
+🔥 catalyst
 
-━━━━━━  💡 <b>CONTOH PENGGUNAAN</b>  ━━━━━━
+━━━━━━  💡 <b>CONTOH</b>  ━━━━━━
 
-▶️ <code>/cek BBCA</code>
-▶️ <code>/sektor catalyst</code>
-▶️ <code>/scan ANTM MDKA AMMN</code>
-▶️ <code>/sektor tambang</code>
+▶️ <code>/info catalyst</code> — narasi saham panas
+▶️ <code>/info konglomerat</code> — grup konglomerat
+▶️ <code>/sektor tambang</code> — scan breakout tambang
+▶️ <code>/cek AMMN</code> — analisa saham
 
 ╔════════════════════════════╗
 ║ ⚠️ <i>Bukan rekomendasi investasi</i> ║
@@ -370,7 +385,7 @@ def process_update(update):
     global offset
     offset = update["update_id"] + 1
 
-    # Handle tombol inline
+    # Handle tombol inline keyboard
     callback = update.get("callback_query", {})
     if callback:
         cid   = str(callback.get("message", {}).get("chat", {}).get("id", ""))
@@ -383,6 +398,8 @@ def process_update(update):
             threading.Thread(target=handle_scan, args=(cid, None), daemon=True).start()
         elif data == "menu_sektor":
             handle_sektor(cid, "")
+        elif data == "menu_info":
+            handle_info(cid, "")
         elif data == "menu_watchlist":
             handle_watchlist(cid)
         elif data == "menu_help":
@@ -418,6 +435,7 @@ Bot ini membantu kamu menganalisa saham IDX secara otomatis menggunakan AI dan i
   📊 Analisa teknikal mendalam
   📡 Scan breakout &amp; sinyal
   🏭 Filter per sektor saham
+  📂 Info emiten &amp; narasi katalyst
   🎯 Entry, SL &amp; Target otomatis
 
 ⚡ <i>Pilih menu di bawah untuk mulai:</i>"""
@@ -428,11 +446,12 @@ Bot ini membantu kamu menganalisa saham IDX secara otomatis menggunakan AI dan i
                 {"text": "📡 Scan Watchlist", "callback_data": "menu_scan"},
             ],
             [
-                {"text": "🏭 Lihat Sektor", "callback_data": "menu_sektor"},
-                {"text": "📋 Watchlist", "callback_data": "menu_watchlist"},
+                {"text": "🏭 Scan Sektor", "callback_data": "menu_sektor"},
+                {"text": "📂 Info Sektor", "callback_data": "menu_info"},
             ],
             [
-                {"text": "❓ Bantuan / Help", "callback_data": "menu_help"},
+                {"text": "📋 Watchlist", "callback_data": "menu_watchlist"},
+                {"text": "❓ Help", "callback_data": "menu_help"},
             ],
         ]
         send_inline_keyboard(chat_id, welcome, buttons)
@@ -446,6 +465,10 @@ Bot ini membantu kamu menganalisa saham IDX secara otomatis menggunakan AI dan i
     elif cmd == "/sektor":
         nama = parts[1] if len(parts) > 1 else ""
         handle_sektor(chat_id, nama)
+
+    elif cmd == "/info":
+        nama = parts[1] if len(parts) > 1 else ""
+        handle_info(chat_id, nama)
 
     elif cmd == "/cek":
         if len(parts) < 2:
