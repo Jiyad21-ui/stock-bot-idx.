@@ -5,6 +5,7 @@ ai_scorer.py — Pakai Groq AI (GRATIS) untuk scoring multi-indikator
 import json
 import logging
 import os
+import time
 from groq import Groq
 from typing import Optional
 from config import SCORE_WEIGHTS, MIN_SCORE
@@ -13,6 +14,9 @@ logger = logging.getLogger(__name__)
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 client = Groq(api_key=GROQ_API_KEY)
+
+# Tracking rate limit
+_rate_limited_until = 0
 
 
 def build_analysis_prompt(data: dict) -> str:
@@ -103,9 +107,22 @@ def build_analysis_prompt(data: dict) -> str:
     return prompt.strip()
 
 
-def analyze_with_ai(data: dict) -> Optional[dict]:
-    ticker = data.get("ticker", "UNKNOWN")
+def analyze_with_ai(data: dict, _chat_id=None, _reply_fn=None) -> Optional[dict]:
+    global _rate_limited_until
+
+    ticker   = data.get("ticker", "UNKNOWN")
     raw_text = ""
+
+    # Cek apakah masih dalam periode rate limit
+    if _rate_limited_until > 0 and time.time() < _rate_limited_until:
+        sisa = int(_rate_limited_until - time.time())
+        menit = sisa // 60
+        detik = sisa % 60
+        msg = f"⏳ Groq API sedang cooldown. Sisa: {menit}m {detik}s" if menit > 0 else f"⏳ Groq API sedang cooldown. Sisa: {detik} detik"
+        logger.warning(f"[{ticker}] Rate limited, skip. {msg}")
+        if _reply_fn and _chat_id:
+            _reply_fn(_chat_id, f"⚠️ <b>Groq API Rate Limit</b>\n\n{msg}\n\nCoba lagi setelah cooldown selesai.")
+        return None
 
     try:
         prompt = build_analysis_prompt(data)
@@ -138,14 +155,51 @@ def analyze_with_ai(data: dict) -> Optional[dict]:
         result = json.loads(raw_text)
         result["ticker"] = ticker
 
+        # Reset rate limit tracker kalau berhasil
+        _rate_limited_until = 0
+
         logger.info(f"[{ticker}] Groq Score: {result.get('score')}/100 — {result.get('signal')}")
         return result
 
     except json.JSONDecodeError as e:
         logger.error(f"[{ticker}] Gagal parse JSON: {e} | Raw: {raw_text[:300]}")
         return None
+
     except Exception as e:
-        logger.error(f"[{ticker}] Error Groq: {e}", exc_info=True)
+        err_str = str(e).lower()
+
+        # Deteksi rate limit error
+        if "rate limit" in err_str or "429" in err_str or "too many" in err_str:
+            # Set cooldown 60 detik
+            cooldown = 60
+            _rate_limited_until = time.time() + cooldown
+            logger.warning(f"[{ticker}] Groq RATE LIMIT! Cooldown {cooldown}s")
+            if _reply_fn and _chat_id:
+                _reply_fn(_chat_id,
+                    f"⚠️ <b>Groq API Rate Limit Tercapai!</b>\n\n"
+                    f"🕐 Bot otomatis cooldown <b>60 detik</b>.\n"
+                    f"Proses scan akan dilanjutkan setelah cooldown selesai.\n\n"
+                    f"<i>Tips: Kurangi frekuensi scan untuk menghindari limit.</i>"
+                )
+        elif "api key" in err_str or "authentication" in err_str or "401" in err_str:
+            logger.error(f"[{ticker}] Groq API Key tidak valid!")
+            if _reply_fn and _chat_id:
+                _reply_fn(_chat_id,
+                    f"❌ <b>Groq API Key Error!</b>\n\n"
+                    f"API Key tidak valid atau expired.\n"
+                    f"Periksa environment variable <code>GROQ_API_KEY</code> di Railway."
+                )
+        elif "connection" in err_str or "timeout" in err_str:
+            logger.error(f"[{ticker}] Groq connection error: {e}")
+            if _reply_fn and _chat_id:
+                _reply_fn(_chat_id,
+                    f"⚠️ <b>Koneksi ke Groq gagal!</b>\n\n"
+                    f"Kemungkinan timeout atau Groq sedang down.\n"
+                    f"Coba lagi beberapa saat."
+                )
+        else:
+            logger.error(f"[{ticker}] Error Groq: {e}", exc_info=True)
+
         return None
 
 
