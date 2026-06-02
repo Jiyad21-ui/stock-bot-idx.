@@ -233,8 +233,8 @@ def handle_scan(chat_id, tickers=None):
 
 has_potential = (
     bo.get("is_breakout") or
-    bo.get("breakout_type") == "near_breakout" or
-    (vol.get("surge") and ema.get("price_above_200"))
+    (bo.get("breakout_type") == "near_breakout" and vol.get("surge")) or
+    (vol.get("surge") and ema.get("price_above_200") and rsi.get("zone") in ("bullish", "overbought"))
 )
         if not has_potential:
             continue
