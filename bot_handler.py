@@ -231,12 +231,11 @@ def handle_scan(chat_id, tickers=None):
         vol = tech.get("volume", {})
         ema = tech.get("ema", {})
 
-        has_potential = (
-            bo.get("is_breakout") or
-            bo.get("breakout_type") == "near_breakout" or
-            (vol.get("surge") and ema.get("price_above_200"))
-        )
-
+has_potential = (
+    bo.get("is_breakout") or
+    bo.get("breakout_type") == "near_breakout" or
+    (vol.get("surge") and ema.get("price_above_200"))
+)
         if not has_potential:
             continue
 
