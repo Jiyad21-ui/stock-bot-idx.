@@ -128,7 +128,7 @@ def analyze_with_ai(data: dict, _chat_id=None, _reply_fn=None) -> Optional[dict]
         prompt = build_analysis_prompt(data)
 
         response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=[
                 {
                     "role": "system",
