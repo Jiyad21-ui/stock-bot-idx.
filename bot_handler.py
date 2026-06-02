@@ -259,10 +259,14 @@ has_potential = (
 
     results.sort(key=lambda x: x["score"], reverse=True)
     summary_lines = ["📊 <b>HASIL SCAN</b>", ""]
-    for r in results:
+for r in results:
+        if r["score"] < 65:
+            continue
         sig_e = {"STRONG_BUY": "🚀", "BUY": "📈", "NEUTRAL": "⚖️", "AVOID": "🚫"}.get(r["signal"], "")
         summary_lines.append(f"{sig_e} <b>{r['ticker']}</b> — {r['score']}/100 — {r['signal']}")
-    summary_lines += ["", f"Total: {len(results)} saham potensial"]
+
+    layak = [r for r in results if r["score"] >= 65]
+    summary_lines += ["", f"✅ Layak ditinjau: {len(layak)} saham", f"📊 Total dipindai: {len(results)} saham"]
     reply(chat_id, "\n".join(summary_lines))
 
     time.sleep(2)
