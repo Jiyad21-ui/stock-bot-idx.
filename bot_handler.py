@@ -272,10 +272,7 @@ def handle_scan(chat_id, tickers=None, label="Watchlist"):
 
     # Filter layak
     results.sort(key=lambda x: x["score"], reverse=True)
-    layak = [
-    r for r in results
-    if r["score"] >= 50 and r["signal"] not in ("AVOID", "", None)
-    ]
+    layak = [r for r in results if r["signal"] not in ("AVOID", "", None)]
 
     # Kirim laporan ringkasan
     summary_lines = [
