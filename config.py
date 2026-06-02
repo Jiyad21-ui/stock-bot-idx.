@@ -27,7 +27,7 @@ WATCHLIST = [
 
     # ══ KONGLOMERAT ════════════════════════════════════════
     "BRPT.JK", "BREN.JK", "TPIA.JK", "CDIA.JK", "PTRO.JK",
-    "SSIA.JK",
+    "SSIA.JK","CUAN.JK",
 
     "RAJA.JK", "RATU.JK", "BUVA.JK", "MINA.JK",
     "PSKT.JK", "PADI.JK",
@@ -132,7 +132,7 @@ SECTORS = {
 
     "konglomerat": [
         "BRPT.JK", "BREN.JK", "TPIA.JK", "CDIA.JK",
-        "PTRO.JK", "SSIA.JK",
+        "PTRO.JK", "SSIA.JK","CUAN.JK",
 
         "RAJA.JK", "RATU.JK", "BUVA.JK",
         "MINA.JK", "PSKT.JK", "PADI.JK",
