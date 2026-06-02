@@ -204,13 +204,19 @@ def handle_cek(chat_id, ticker):
     reply(chat_id, msg)
 
 
-def handle_scan(chat_id, tickers=None):
-    target = tickers if tickers else WATCHLIST
-    total  = len(target)
+def handle_scan(chat_id, tickers=None, label="Watchlist"):
+    target     = tickers if tickers else WATCHLIST
+    total      = len(target)
+    start_time = time.time()
 
     reply(chat_id, f"🔍 Memulai scan <b>{total} saham</b>...\nBot akan diam selama proses, hasil dikirim setelah selesai.")
 
-    results = []
+    # Statistik
+    fetch_ok   = 0
+    fetch_fail = 0
+    masuk_ai   = 0
+    results    = []
+
     for i, t in enumerate(target, 1):
         ticker = t.upper()
         if not ticker.endswith(".JK"):
@@ -221,7 +227,9 @@ def handle_scan(chat_id, tickers=None):
 
         df = fetch_ohlcv(ticker)
         if df is None:
+            fetch_fail += 1
             continue
+        fetch_ok += 1
 
         tech = compute_indicators(df, ticker=ticker)
         if tech is None:
@@ -232,7 +240,6 @@ def handle_scan(chat_id, tickers=None):
         ema = tech.get("ema", {})
         rsi = tech.get("rsi", {})
 
-        # Pre-filter ketat
         has_potential = (
             bo.get("is_breakout") or
             (bo.get("breakout_type") == "near_breakout" and vol.get("surge")) or
@@ -242,6 +249,7 @@ def handle_scan(chat_id, tickers=None):
         if not has_potential:
             continue
 
+        masuk_ai += 1
         ai = analyze_with_ai(tech)
         if ai is None:
             continue
@@ -256,33 +264,43 @@ def handle_scan(chat_id, tickers=None):
 
         time.sleep(1)
 
-    if not results:
-        reply(chat_id, "📊 Scan selesai.\n\nTidak ada saham yang memenuhi kriteria breakout hari ini.")
-        return
+    # Hitung durasi
+    durasi_detik = int(time.time() - start_time)
+    menit  = durasi_detik // 60
+    detik  = durasi_detik % 60
+    durasi_str = f"{menit} menit {detik} detik" if menit > 0 else f"{detik} detik"
 
+    # Filter layak
     results.sort(key=lambda x: x["score"], reverse=True)
-
-    # Filter: hanya NEUTRAL, BUY, STRONG_BUY dengan score >= 50
     layak = [
         r for r in results
         if r["score"] >= 50 and r["signal"] in ("NEUTRAL", "BUY", "STRONG_BUY")
     ]
 
-    if not layak:
-        reply(chat_id, "📊 Scan selesai.\n\nTidak ada saham dengan sinyal NEUTRAL/BUY/STRONG BUY hari ini.")
-        return
-
-    # Kirim ringkasan
-    summary_lines = ["📊 <b>HASIL SCAN</b>", ""]
-    for r in layak:
-        sig_e = {"STRONG_BUY": "🚀", "BUY": "📈", "NEUTRAL": "⚖️"}.get(r["signal"], "")
-        summary_lines.append(f"{sig_e} <b>{r['ticker']}</b> — {r['score']}/100 — {r['signal']}")
-
-    summary_lines += [
+    # Kirim laporan ringkasan
+    summary_lines = [
+        f"📊 <b>LAPORAN SCAN {label.upper()}</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
         "",
-        f"✅ Layak ditinjau: {len(layak)} saham",
-        f"📊 Total dianalisa AI: {len(results)} saham",
+        f"✅ Berhasil fetch data : <b>{fetch_ok}/{total}</b>",
+        f"❌ Data tidak tersedia : <b>{fetch_fail} saham</b>",
+        f"🤖 Masuk AI scoring   : <b>{masuk_ai} saham</b>",
+        f"🚀 Layak ditinjau     : <b>{len(layak)} saham</b>",
+        "",
+        f"⏱ Durasi scan: <b>{durasi_str}</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
     ]
+
+    if layak:
+        summary_lines.append("")
+        summary_lines.append("📈 <b>SAHAM POTENSIAL:</b>")
+        for r in layak:
+            sig_e = {"STRONG_BUY": "🚀", "BUY": "📈", "NEUTRAL": "⚖️"}.get(r["signal"], "")
+            summary_lines.append(f"  {sig_e} <b>{r['ticker']}</b> — {r['score']}/100 — {r['signal']}")
+    else:
+        summary_lines.append("")
+        summary_lines.append("😔 Tidak ada saham dengan sinyal NEUTRAL/BUY/STRONG BUY hari ini.")
+
     reply(chat_id, "\n".join(summary_lines))
 
     # Kirim detail satu per satu
@@ -319,7 +337,7 @@ def handle_sektor(chat_id, nama_sektor):
         f"📊 Total: {len(tickers)} saham\n"
         f"⏱ Estimasi: ~{len(tickers) * 3} detik..."
     )
-    threading.Thread(target=handle_scan, args=(chat_id, tickers), daemon=True).start()
+    threading.Thread(target=handle_scan, args=(chat_id, tickers, nama_sektor), daemon=True).start()
 
 
 def handle_info(chat_id, nama_sektor):
@@ -413,7 +431,7 @@ def process_update(update):
         if data == "menu_cek":
             reply(cid, "🔍 Ketik perintah:\n<code>/cek BBCA</code>\natau\n<code>/cek BBCA TLKM ANTM</code>")
         elif data == "menu_scan":
-            threading.Thread(target=handle_scan, args=(cid, None), daemon=True).start()
+            threading.Thread(target=handle_scan, args=(cid, None, "Watchlist"), daemon=True).start()
         elif data == "menu_sektor":
             handle_sektor(cid, "")
         elif data == "menu_info":
@@ -499,7 +517,8 @@ Bot ini membantu kamu menganalisa saham IDX secara otomatis menggunakan AI dan i
 
     elif cmd == "/scan":
         tickers = parts[1:] if len(parts) > 1 else None
-        threading.Thread(target=handle_scan, args=(chat_id, tickers), daemon=True).start()
+        label = "Saham Pilihan" if tickers else "Watchlist"
+        threading.Thread(target=handle_scan, args=(chat_id, tickers, label), daemon=True).start()
 
     else:
         reply(chat_id, "❓ Perintah tidak dikenal.\nKetik /help untuk melihat menu.")
