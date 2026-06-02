@@ -211,10 +211,10 @@ def handle_scan(chat_id, tickers=None, label="Watchlist"):
 
     reply(chat_id, f"🔍 Memulai scan <b>{total} saham</b>...\nBot akan diam selama proses, hasil dikirim setelah selesai.")
 
-    # Statistik
     fetch_ok   = 0
     fetch_fail = 0
     masuk_ai   = 0
+    skip_rusak = 0
     results    = []
 
     for i, t in enumerate(target, 1):
@@ -239,6 +239,16 @@ def handle_scan(chat_id, tickers=None, label="Watchlist"):
         vol = tech.get("volume", {})
         ema = tech.get("ema", {})
         rsi = tech.get("rsi", {})
+
+        # Validasi data — buang saham suspend/rusak
+        rsi_val   = rsi.get("value")
+        vol_ratio = vol.get("ratio", 0)
+        close     = tech.get("price", {}).get("close", 0)
+
+        if rsi_val is None or vol_ratio == 0 or close == 0:
+            skip_rusak += 1
+            logger.info(f"[{ticker}] Skip — data rusak/suspend (RSI={rsi_val}, vol={vol_ratio}, close={close})")
+            continue
 
         has_potential = (
             bo.get("is_breakout") or
@@ -266,23 +276,27 @@ def handle_scan(chat_id, tickers=None, label="Watchlist"):
 
     # Hitung durasi
     durasi_detik = int(time.time() - start_time)
-    menit  = durasi_detik // 60
-    detik  = durasi_detik % 60
-    durasi_str = f"{menit} menit {detik} detik" if menit > 0 else f"{detik} detik"
+    menit        = durasi_detik // 60
+    detik        = durasi_detik % 60
+    durasi_str   = f"{menit} menit {detik} detik" if menit > 0 else f"{detik} detik"
 
-    # Filter layak
+    # Filter layak: score >= 50 dan bukan AVOID
     results.sort(key=lambda x: x["score"], reverse=True)
-    layak = [r for r in results if r["signal"] not in ("AVOID", "", None)]
+    layak = [
+        r for r in results
+        if r["score"] >= 50 and r["signal"] not in ("AVOID", "", None)
+    ]
 
     # Kirim laporan ringkasan
     summary_lines = [
         f"📊 <b>LAPORAN SCAN {label.upper()}</b>",
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
         "",
-        f"✅ Berhasil fetch data : <b>{fetch_ok}/{total}</b>",
-        f"❌ Data tidak tersedia : <b>{fetch_fail} saham</b>",
-        f"🤖 Masuk AI scoring   : <b>{masuk_ai} saham</b>",
-        f"🚀 Layak ditinjau     : <b>{len(layak)} saham</b>",
+        f"✅ Berhasil fetch data  : <b>{fetch_ok}/{total}</b>",
+        f"❌ Data tidak tersedia  : <b>{fetch_fail} saham</b>",
+        f"⛔ Saham suspend/rusak  : <b>{skip_rusak} saham</b>",
+        f"🤖 Masuk AI scoring    : <b>{masuk_ai} saham</b>",
+        f"🚀 Layak ditinjau      : <b>{len(layak)} saham</b>",
         "",
         f"⏱ Durasi scan: <b>{durasi_str}</b>",
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
@@ -296,7 +310,7 @@ def handle_scan(chat_id, tickers=None, label="Watchlist"):
             summary_lines.append(f"  {sig_e} <b>{r['ticker']}</b> — {r['score']}/100 — {r['signal']}")
     else:
         summary_lines.append("")
-        summary_lines.append("😔 Tidak ada saham dengan sinyal NEUTRAL/BUY/STRONG BUY hari ini.")
+        summary_lines.append("😔 Tidak ada saham potensial hari ini.")
 
     reply(chat_id, "\n".join(summary_lines))
 
