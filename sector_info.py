@@ -9,7 +9,7 @@ SECTOR_INFO = {
         "description": "Saham-saham milik konglomerat besar Indonesia",
         "groups": {
             "🔵 PRAJOGO PANGESTU (Grup Barito)": {
-                "tickers": ["BRPT.JK", "BREN.JK", "TPIA.JK", "CDIA.JK", "PTRO.JK", "SSIA.JK"],
+                "tickers": ["BRPT.JK", "BREN.JK", "TPIA.JK", "CDIA.JK", "PTRO.JK", "SSIA.JK", "CUAN.JK"],
                 "info": "Raja petrokimia & energi terbarukan. BREN jadi primadona setelah IPO jumbo. TPIA dominasi industri petrokimia nasional."
             },
             "🟢 HAPPY HAPSORO (Grup Hapsoro)": {
