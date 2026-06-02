@@ -227,15 +227,18 @@ def handle_scan(chat_id, tickers=None):
         if tech is None:
             continue
 
-        bo  = tech.get("breakout", {})
-        vol = tech.get("volume", {})
-        ema = tech.get("ema", {})
+        bo   = tech.get("breakout", {})
+        vol  = tech.get("volume", {})
+        ema  = tech.get("ema", {})
+        rsi  = tech.get("rsi", {})
 
-has_potential = (
-    bo.get("is_breakout") or
-    (bo.get("breakout_type") == "near_breakout" and vol.get("surge")) or
-    (vol.get("surge") and ema.get("price_above_200") and rsi.get("zone") in ("bullish", "overbought"))
-)
+        # Pre-filter lebih ketat — hanya saham berpotensi kuat
+        has_potential = (
+            bo.get("is_breakout") or
+            (bo.get("breakout_type") == "near_breakout" and vol.get("surge")) or
+            (vol.get("surge") and ema.get("price_above_200") and rsi.get("zone") in ("bullish", "overbought"))
+        )
+
         if not has_potential:
             continue
 
@@ -258,17 +261,20 @@ has_potential = (
         return
 
     results.sort(key=lambda x: x["score"], reverse=True)
+
+    # Ringkasan hanya tampilkan yang score >= 65
     summary_lines = ["📊 <b>HASIL SCAN</b>", ""]
-for r in results:
+    for r in results:
         if r["score"] < 65:
             continue
         sig_e = {"STRONG_BUY": "🚀", "BUY": "📈", "NEUTRAL": "⚖️", "AVOID": "🚫"}.get(r["signal"], "")
         summary_lines.append(f"{sig_e} <b>{r['ticker']}</b> — {r['score']}/100 — {r['signal']}")
 
     layak = [r for r in results if r["score"] >= 65]
-    summary_lines += ["", f"✅ Layak ditinjau: {len(layak)} saham", f"📊 Total dipindai: {len(results)} saham"]
+    summary_lines += ["", f"✅ Layak ditinjau: {len(layak)} saham", f"📊 Total dianalisa AI: {len(results)} saham"]
     reply(chat_id, "\n".join(summary_lines))
 
+    # Kirim detail hanya yang score >= 65
     time.sleep(2)
     for r in results:
         if r["score"] >= 65:
@@ -372,10 +378,10 @@ def handle_help(chat_id):
 
 ━━━━━━  💡 <b>CONTOH</b>  ━━━━━━
 
-▶️ <code>/info catalyst</code> — narasi saham panas
-▶️ <code>/info konglomerat</code> — grup konglomerat
-▶️ <code>/sektor tambang</code> — scan breakout tambang
-▶️ <code>/cek AMMN</code> — analisa saham
+▶️ <code>/info catalyst</code>
+▶️ <code>/info konglomerat</code>
+▶️ <code>/sektor tambang</code>
+▶️ <code>/cek AMMN</code>
 
 ╔════════════════════════════╗
 ║ ⚠️ <i>Bukan rekomendasi investasi</i> ║
@@ -388,7 +394,6 @@ def process_update(update):
     global offset
     offset = update["update_id"] + 1
 
-    # Handle tombol inline keyboard
     callback = update.get("callback_query", {})
     if callback:
         cid   = str(callback.get("message", {}).get("chat", {}).get("id", ""))
