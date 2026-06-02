@@ -227,12 +227,12 @@ def handle_scan(chat_id, tickers=None):
         if tech is None:
             continue
 
-        bo   = tech.get("breakout", {})
-        vol  = tech.get("volume", {})
-        ema  = tech.get("ema", {})
-        rsi  = tech.get("rsi", {})
+        bo  = tech.get("breakout", {})
+        vol = tech.get("volume", {})
+        ema = tech.get("ema", {})
+        rsi = tech.get("rsi", {})
 
-        # Pre-filter lebih ketat — hanya saham berpotensi kuat
+        # Pre-filter ketat
         has_potential = (
             bo.get("is_breakout") or
             (bo.get("breakout_type") == "near_breakout" and vol.get("surge")) or
@@ -262,25 +262,35 @@ def handle_scan(chat_id, tickers=None):
 
     results.sort(key=lambda x: x["score"], reverse=True)
 
-    # Ringkasan hanya tampilkan yang score >= 65
+    # Filter: hanya NEUTRAL, BUY, STRONG_BUY dengan score >= 50
+    layak = [
+        r for r in results
+        if r["score"] >= 50 and r["signal"] in ("NEUTRAL", "BUY", "STRONG_BUY")
+    ]
+
+    if not layak:
+        reply(chat_id, "📊 Scan selesai.\n\nTidak ada saham dengan sinyal NEUTRAL/BUY/STRONG BUY hari ini.")
+        return
+
+    # Kirim ringkasan
     summary_lines = ["📊 <b>HASIL SCAN</b>", ""]
-    for r in results:
-        if r["score"] < 65:
-            continue
-        sig_e = {"STRONG_BUY": "🚀", "BUY": "📈", "NEUTRAL": "⚖️", "AVOID": "🚫"}.get(r["signal"], "")
+    for r in layak:
+        sig_e = {"STRONG_BUY": "🚀", "BUY": "📈", "NEUTRAL": "⚖️"}.get(r["signal"], "")
         summary_lines.append(f"{sig_e} <b>{r['ticker']}</b> — {r['score']}/100 — {r['signal']}")
 
-    layak = [r for r in results if r["score"] >= 65]
-    summary_lines += ["", f"✅ Layak ditinjau: {len(layak)} saham", f"📊 Total dianalisa AI: {len(results)} saham"]
+    summary_lines += [
+        "",
+        f"✅ Layak ditinjau: {len(layak)} saham",
+        f"📊 Total dianalisa AI: {len(results)} saham",
+    ]
     reply(chat_id, "\n".join(summary_lines))
 
-    # Kirim detail hanya yang score >= 65
+    # Kirim detail satu per satu
     time.sleep(2)
-    for r in results:
-        if r["score"] >= 65:
-            msg = format_result(r["tech"], r["ai"])
-            reply(chat_id, msg)
-            time.sleep(2)
+    for r in layak:
+        msg = format_result(r["tech"], r["ai"])
+        reply(chat_id, msg)
+        time.sleep(2)
 
 
 def handle_sektor(chat_id, nama_sektor):
