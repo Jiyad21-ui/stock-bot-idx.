@@ -471,6 +471,29 @@ response = client.chat.completions.create(
                 .content
                 or ""
             )
+if not raw_text.strip():
+
+    logger.error(
+        "[%s] Groq mengembalikan content kosong.",
+        ticker
+    )
+
+    message = response.choices[0].message
+
+    logger.error(
+        "[%s] Response message: %s",
+        ticker,
+        message
+    )
+
+    _send_reply(
+        _chat_id,
+        _reply_fn,
+        "⚠️ <b>AI tidak menghasilkan teks jawaban.</b>\n"
+        "Bot akan mencoba lagi pada request berikutnya."
+    )
+
+    return None
 
             cleaned = _clean_json_text(
                 raw_text
