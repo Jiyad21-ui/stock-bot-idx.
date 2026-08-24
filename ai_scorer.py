@@ -1,5 +1,7 @@
 """
-ai_scorer.py — Groq AI scoring untuk Stock Bot IDX
+ai_scorer.py
+AI Technical Analysis menggunakan Groq
+Stock Bot IDX
 """
 
 import json
@@ -13,255 +15,619 @@ from groq import Groq
 
 from config import SCORE_WEIGHTS, MIN_SCORE
 
+
+# ============================================================
+# LOGGER
+# ============================================================
+
 logger = logging.getLogger(__name__)
 
+
+# ============================================================
+# GROQ CONFIGURATION
+# ============================================================
+
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
-GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b").strip()
+
+GROQ_MODEL = os.getenv(
+    "GROQ_MODEL",
+    "openai/gpt-oss-20b"
+).strip()
+
 
 if not GROQ_API_KEY:
-    logger.warning("GROQ_API_KEY belum di-set.")
 
-client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
+    logger.warning(
+        "GROQ_API_KEY belum di-set."
+    )
+
+
+client = (
+    Groq(
+        api_key=GROQ_API_KEY
+    )
+    if GROQ_API_KEY
+    else None
+)
+
+
+# ============================================================
+# RATE LIMIT STATE
+# ============================================================
 
 _rate_limited_until = 0.0
 
 
+# ============================================================
+# BUILD PROMPT
+# ============================================================
+
 def build_analysis_prompt(data: dict) -> str:
-    ticker = data.get("ticker", "UNKNOWN")
-    price = data.get("price", {})
-    ema = data.get("ema", {})
-    rsi = data.get("rsi", {})
-    macd = data.get("macd", {})
-    bb = data.get("bbands", {})
-    stoch = data.get("stochastic", {})
-    mfi = data.get("mfi", {})
-    obv = data.get("obv", {})
-    vwap = data.get("vwap", {})
-    volume = data.get("volume", {})
-    sr = data.get("sr", {})
-    bo = data.get("breakout", {})
-    atr = data.get("atr", {})
 
-    return f"""
-Kamu adalah analis teknikal saham senior spesialis pasar IDX Indonesia.
+    ticker = data.get(
+        "ticker",
+        "UNKNOWN"
+    )
 
-Jawab HANYA dengan JSON valid.
-Jangan gunakan markdown atau teks di luar JSON.
+    price = data.get(
+        "price",
+        {}
+    )
 
-DATA SAHAM {ticker}
+    ema = data.get(
+        "ema",
+        {}
+    )
 
-HARGA:
-Close={price.get('close')}
-Open={price.get('open')}
-High={price.get('high')}
-Low={price.get('low')}
-Perubahan={price.get('change_pct')}%
+    rsi = data.get(
+        "rsi",
+        {}
+    )
 
-BREAKOUT:
-is_breakout={bo.get('is_breakout')}
-tipe={bo.get('breakout_type')}
-level={bo.get('breakout_level')}
-jarak={bo.get('breakout_pct')}%
+    macd = data.get(
+        "macd",
+        {}
+    )
 
-VOLUME:
-hari_ini={volume.get('today')}
-avg_20d={volume.get('avg_20d')}
-ratio={volume.get('ratio')}x
-surge={volume.get('surge')}
+    bb = data.get(
+        "bbands",
+        {}
+    )
 
-SUPPORT / RESISTANCE:
-resistance={sr.get('nearest_resistance')}
-support={sr.get('nearest_support')}
-high_52w={sr.get('high_52w')}
-low_52w={sr.get('low_52w')}
+    stoch = data.get(
+        "stochastic",
+        {}
+    )
 
-EMA:
-EMA9={ema.get('ema9')}
-EMA21={ema.get('ema21')}
-EMA50={ema.get('ema50')}
-EMA200={ema.get('ema200')}
-bullish_alignment={ema.get('bullish_alignment')}
-above_ema200={ema.get('price_above_200')}
+    mfi = data.get(
+        "mfi",
+        {}
+    )
+
+    obv = data.get(
+        "obv",
+        {}
+    )
+
+    vwap = data.get(
+        "vwap",
+        {}
+    )
+
+    volume = data.get(
+        "volume",
+        {}
+    )
+
+    sr = data.get(
+        "sr",
+        {}
+    )
+
+    breakout = data.get(
+        "breakout",
+        {}
+    )
+
+    atr = data.get(
+        "atr",
+        {}
+    )
+
+
+    prompt = f"""
+Kamu adalah analis teknikal saham profesional
+yang fokus pada saham Bursa Efek Indonesia (IDX).
+
+Analisis data teknikal yang diberikan.
+
+PENTING:
+
+1. Jangan mengarang data.
+2. Gunakan hanya data yang diberikan.
+3. Jangan membuat berita atau fundamental yang tidak diberikan.
+4. Pertimbangkan risiko.
+5. Volume sangat penting untuk validasi breakout.
+6. Gunakan Bahasa Indonesia.
+7. Jawaban WAJIB berupa JSON valid.
+8. Jangan menggunakan markdown.
+9. Jangan menggunakan ```json.
+10. Jangan menambahkan teks sebelum atau sesudah JSON.
+
+==================================================
+SAHAM
+==================================================
+
+Ticker:
+{ticker}
+
+==================================================
+HARGA
+==================================================
+
+Close:
+{price.get('close')}
+
+Open:
+{price.get('open')}
+
+High:
+{price.get('high')}
+
+Low:
+{price.get('low')}
+
+Perubahan:
+{price.get('change_pct')}%
+
+==================================================
+BREAKOUT
+==================================================
+
+Breakout:
+{breakout.get('is_breakout')}
+
+Breakout Type:
+{breakout.get('breakout_type')}
+
+Breakout Level:
+{breakout.get('breakout_level')}
+
+Breakout Distance:
+{breakout.get('breakout_pct')}%
+
+==================================================
+VOLUME
+==================================================
+
+Volume Hari Ini:
+{volume.get('today')}
+
+Average Volume 20 Hari:
+{volume.get('avg_20d')}
+
+Volume Ratio:
+{volume.get('ratio')}x
+
+Volume Surge:
+{volume.get('surge')}
+
+==================================================
+SUPPORT RESISTANCE
+==================================================
+
+Nearest Resistance:
+{sr.get('nearest_resistance')}
+
+Nearest Support:
+{sr.get('nearest_support')}
+
+52 Week High:
+{sr.get('high_52w')}
+
+52 Week Low:
+{sr.get('low_52w')}
+
+==================================================
+EMA
+==================================================
+
+EMA9:
+{ema.get('ema9')}
+
+EMA21:
+{ema.get('ema21')}
+
+EMA50:
+{ema.get('ema50')}
+
+EMA200:
+{ema.get('ema200')}
+
+Bullish Alignment:
+{ema.get('bullish_alignment')}
+
+Price Above EMA200:
+{ema.get('price_above_200')}
+
+==================================================
+RSI
+==================================================
 
 RSI:
-value={rsi.get('value')}
-zone={rsi.get('zone')}
-direction={rsi.get('direction')}
+{rsi.get('value')}
+
+RSI Zone:
+{rsi.get('zone')}
+
+RSI Direction:
+{rsi.get('direction')}
+
+==================================================
+MACD
+==================================================
 
 MACD:
-macd={macd.get('macd')}
-signal={macd.get('signal')}
-histogram={macd.get('histogram')}
-bullish_cross={macd.get('bullish_cross')}
-hist_growing={macd.get('histogram_growing')}
+{macd.get('macd')}
 
-BOLLINGER BANDS:
-upper={bb.get('upper')}
-mid={bb.get('mid')}
-lower={bb.get('lower')}
-squeeze={bb.get('squeeze')}
-breakout_upper={bb.get('price_above_upper')}
+Signal:
+{macd.get('signal')}
 
-STOCHASTIC:
-K={stoch.get('k')}
-D={stoch.get('d')}
-bullish_cross={stoch.get('bullish_cross')}
+Histogram:
+{macd.get('histogram')}
+
+Bullish Cross:
+{macd.get('bullish_cross')}
+
+Histogram Growing:
+{macd.get('histogram_growing')}
+
+==================================================
+BOLLINGER BANDS
+==================================================
+
+Upper:
+{bb.get('upper')}
+
+Middle:
+{bb.get('mid')}
+
+Lower:
+{bb.get('lower')}
+
+Squeeze:
+{bb.get('squeeze')}
+
+Price Above Upper:
+{bb.get('price_above_upper')}
+
+==================================================
+STOCHASTIC
+==================================================
+
+K:
+{stoch.get('k')}
+
+D:
+{stoch.get('d')}
+
+Bullish Cross:
+{stoch.get('bullish_cross')}
+
+==================================================
+MFI
+==================================================
 
 MFI:
-value={mfi.get('value')}
-zone={mfi.get('zone')}
+{mfi.get('value')}
 
-OBV:
-above_ema={obv.get('above_ema')}
-rising={obv.get('rising')}
+MFI Zone:
+{mfi.get('zone')}
 
-VWAP:
-value={vwap.get('value_20d')}
-price_above={vwap.get('price_above')}
+==================================================
+OBV
+==================================================
+
+Above EMA:
+{obv.get('above_ema')}
+
+Rising:
+{obv.get('rising')}
+
+==================================================
+VWAP
+==================================================
+
+VWAP 20D:
+{vwap.get('value_20d')}
+
+Price Above VWAP:
+{vwap.get('price_above')}
+
+==================================================
+ATR
+==================================================
 
 ATR:
-value={atr.get('value')}
-pct={atr.get('pct_of_price')}%
+{atr.get('value')}
 
-Berikan JSON dengan struktur berikut:
+ATR Percentage:
+{atr.get('pct_of_price')}%
+
+==================================================
+SCORING
+==================================================
+
+Berikan score 0 sampai 100.
+
+Interpretasi:
+
+80 - 100
+STRONG_BUY
+
+65 - 79
+BUY
+
+45 - 64
+NEUTRAL
+
+0 - 44
+AVOID
+
+==================================================
+OUTPUT JSON
+==================================================
+
+Kembalikan JSON dengan struktur PERSIS seperti berikut:
 
 {{
     "ticker": "{ticker}",
+
     "score": 0,
+
     "signal": "NEUTRAL",
+
     "confidence": "MEDIUM",
-    "summary": "Ringkasan analisis dalam Bahasa Indonesia.",
+
+    "summary": "Ringkasan analisis saham dalam Bahasa Indonesia.",
 
     "reasoning": {{
 
         "breakout_price": {{
             "score": 0,
-            "note": "Analisis breakout"
+            "note": "Analisis breakout."
         }},
 
         "volume_surge": {{
             "score": 0,
-            "note": "Analisis volume"
+            "note": "Analisis volume."
         }},
 
         "rsi_momentum": {{
             "score": 0,
-            "note": "Analisis RSI"
+            "note": "Analisis RSI."
         }},
 
         "macd_signal": {{
             "score": 0,
-            "note": "Analisis MACD"
+            "note": "Analisis MACD."
         }},
 
         "ema_alignment": {{
             "score": 0,
-            "note": "Analisis EMA"
+            "note": "Analisis EMA."
         }},
 
         "bbands_squeeze": {{
             "score": 0,
-            "note": "Analisis Bollinger"
+            "note": "Analisis Bollinger Bands."
         }},
 
         "stoch_mfi": {{
             "score": 0,
-            "note": "Analisis Stochastic dan MFI"
+            "note": "Analisis Stochastic dan MFI."
         }}
+
     }},
 
     "entry_zone": {{
+
         "ideal_entry": 0,
+
         "entry_range_low": 0,
+
         "entry_range_high": 0
+
     }},
 
     "risk_management": {{
+
         "stop_loss": 0,
+
         "stop_loss_pct": 0,
+
         "target_1": 0,
+
         "target_1_pct": 0,
+
         "target_2": 0,
+
         "target_2_pct": 0,
+
         "risk_reward_ratio": 0
+
     }},
 
     "warnings": [],
+
     "catalysts": [],
+
     "timeframe": "3-7 hari"
 }}
 
-ATURAN SCORE:
+==================================================
+ATURAN ANALISIS
+==================================================
 
-STRONG_BUY = score >= 80
-BUY = score 65-79
-NEUTRAL = score 45-64
-AVOID = score < 45
+Score tinggi jika:
 
-Pertimbangkan breakout, volume, RSI, MACD, EMA,
-Bollinger Bands, Stochastic, MFI, OBV, VWAP,
-support/resistance dan ATR.
+- Breakout valid
+- Volume meningkat
+- Harga di atas EMA penting
+- EMA bullish alignment
+- RSI mendukung momentum
+- MACD bullish
+- Histogram MACD meningkat
+- Bollinger breakout
+- Stochastic bullish
+- MFI sehat
+- OBV meningkat
+- Harga di atas VWAP
 
-Volume konfirmasi sangat penting untuk breakout IDX.
+Kurangi score jika:
 
-Stop loss harus mempertimbangkan ATR dan support.
+- Tidak ada breakout
+- Volume rendah
+- Harga di bawah EMA200
+- RSI lemah
+- MACD bearish
+- Volume tidak mengkonfirmasi breakout
+- Resistance sangat dekat
+- Risiko terlalu tinggi
 
-Jangan membuat data fundamental yang tidak diberikan.
-""".strip()
+Stop loss harus mempertimbangkan:
+
+- Support terdekat
+- ATR
+- Volatilitas saham
+
+Target harus realistis berdasarkan:
+
+- Resistance
+- ATR
+- Risk reward
+
+Jangan memberikan kepastian keuntungan.
+
+==================================================
+"""
+
+    return prompt.strip()
 
 
-def _send_reply(chat_id, reply_fn, text):
-    if chat_id and reply_fn:
-        try:
-            reply_fn(chat_id, text)
-        except Exception as e:
-            logger.error(
-                "Gagal mengirim pesan error Telegram: %s",
-                e
-            )
+# ============================================================
+# SEND TELEGRAM MESSAGE
+# ============================================================
+
+def _send_reply(
+    chat_id,
+    reply_fn,
+    text
+):
+
+    if not chat_id:
+        return
+
+    if not reply_fn:
+        return
+
+    try:
+
+        reply_fn(
+            chat_id,
+            text
+        )
+
+    except Exception as e:
+
+        logger.error(
+            "Gagal mengirim pesan Telegram: %s",
+            e
+        )
 
 
-def _get_retry_after(exc) -> Optional[float]:
+# ============================================================
+# GET RETRY AFTER
+# ============================================================
 
-    response = getattr(exc, "response", None)
-    headers = getattr(response, "headers", None)
+def _get_retry_after(
+    exc
+) -> Optional[float]:
+
+    response = getattr(
+        exc,
+        "response",
+        None
+    )
+
+    headers = getattr(
+        response,
+        "headers",
+        None
+    )
+
 
     if headers:
 
         value = (
-            headers.get("retry-after")
-            or headers.get("Retry-After")
+            headers.get(
+                "retry-after"
+            )
+            or
+            headers.get(
+                "Retry-After"
+            )
         )
 
         if value:
 
             try:
+
                 return max(
                     1.0,
                     float(value)
                 )
 
-            except (TypeError, ValueError):
+            except (
+                TypeError,
+                ValueError
+            ):
+
                 pass
 
-    text = str(exc)
+
+    text = str(
+        exc
+    )
+
 
     match = re.search(
         r"retry[- ]after[\"':=\s]+([0-9]+(?:\.[0-9]+)?)",
         text,
-        re.I
+        re.IGNORECASE
     )
 
+
     if match:
+
         return max(
             1.0,
-            float(match.group(1))
+            float(
+                match.group(1)
+            )
         )
+
 
     return None
 
 
-def _is_rate_limit_error(exc):
+# ============================================================
+# CHECK RATE LIMIT
+# ============================================================
+
+def _is_rate_limit_error(
+    exc
+):
 
     status = getattr(
         exc,
@@ -269,25 +635,40 @@ def _is_rate_limit_error(exc):
         None
     )
 
+
     if status == 429:
+
         return True
 
-    text = str(exc).lower()
+
+    text = str(
+        exc
+    ).lower()
+
 
     return (
         "429" in text
-        or "rate limit" in text
-        or "too many requests" in text
+        or
+        "rate limit" in text
+        or
+        "too many requests" in text
     )
 
 
-def _is_temporary_error(exc):
+# ============================================================
+# CHECK TEMPORARY ERROR
+# ============================================================
+
+def _is_temporary_error(
+    exc
+):
 
     status = getattr(
         exc,
         "status_code",
         None
     )
+
 
     if status in (
         408,
@@ -298,52 +679,99 @@ def _is_temporary_error(exc):
         503,
         504
     ):
+
         return True
 
-    text = str(exc).lower()
+
+    text = str(
+        exc
+    ).lower()
+
+
+    temporary_words = [
+
+        "timeout",
+
+        "timed out",
+
+        "connection",
+
+        "temporarily unavailable",
+
+        "server error",
+
+        "service unavailable"
+
+    ]
+
 
     return any(
-        x in text
-        for x in [
-            "timeout",
-            "timed out",
-            "connection",
-            "temporarily unavailable",
-            "server error",
-            "service unavailable"
-        ]
+        word in text
+        for word in temporary_words
     )
 
 
-def _clean_json_text(raw_text: str) -> str:
+# ============================================================
+# CLEAN JSON
+# ============================================================
+
+def _clean_json_text(
+    raw_text: str
+) -> str:
 
     text = (
         raw_text or ""
     ).strip()
 
+
+    # Remove markdown JSON fence
+
     text = re.sub(
         r"^```(?:json)?\s*",
         "",
         text,
-        flags=re.I
+        flags=re.IGNORECASE
     )
+
 
     text = re.sub(
         r"\s*```$",
         "",
         text
-    ).strip()
+    )
 
-    start = text.find("{")
-    end = text.rfind("}")
 
-    if start >= 0 and end > start:
+    text = text.strip()
+
+
+    # Cari object JSON
+
+    start = text.find(
+        "{"
+    )
+
+    end = text.rfind(
+        "}"
+    )
+
+
+    if (
+        start >= 0
+        and
+        end > start
+    ):
+
         text = text[
             start:end + 1
         ]
 
+
     return text.strip()
 
+
+# ============================================================
+# MAIN AI ANALYSIS
+# ============================================================
 
 def analyze_with_ai(
     data: dict,
@@ -353,10 +781,16 @@ def analyze_with_ai(
 
     global _rate_limited_until
 
+
     ticker = data.get(
         "ticker",
         "UNKNOWN"
     )
+
+
+    # ========================================================
+    # CHECK API KEY
+    # ========================================================
 
     if client is None:
 
@@ -365,62 +799,97 @@ def analyze_with_ai(
             ticker
         )
 
+
         _send_reply(
             _chat_id,
             _reply_fn,
+
             "❌ <b>Groq API Key belum tersedia.</b>\n\n"
-            "Pastikan environment variable "
+            "Pastikan variable "
             "<code>GROQ_API_KEY</code> "
             "sudah diisi di Railway."
         )
 
+
         return None
+
+
+    # ========================================================
+    # CHECK RATE LIMIT COOLDOWN
+    # ========================================================
 
     now = time.time()
 
+
     if now < _rate_limited_until:
 
-        sisa = max(
+        remaining = max(
             1,
             int(
-                _rate_limited_until - now
+                _rate_limited_until
+                - now
             )
         )
 
-        menit, detik = divmod(
-            sisa,
+
+        minutes, seconds = divmod(
+            remaining,
             60
         )
 
-        waktu = (
-            f"{menit}m {detik}s"
-            if menit
-            else f"{detik}s"
-        )
+
+        if minutes:
+
+            wait_text = (
+                f"{minutes}m "
+                f"{seconds}s"
+            )
+
+        else:
+
+            wait_text = (
+                f"{seconds}s"
+            )
+
 
         logger.warning(
             "[%s] Rate-limit cooldown aktif: %s",
             ticker,
-            waktu
+            wait_text
         )
+
 
         _send_reply(
             _chat_id,
             _reply_fn,
+
             "⚠️ <b>Groq sedang rate limit.</b>\n\n"
             f"Coba lagi dalam sekitar "
-            f"<b>{waktu}</b>."
+            f"<b>{wait_text}</b>."
         )
 
+
         return None
+
+
+    # ========================================================
+    # BUILD PROMPT
+    # ========================================================
 
     prompt = build_analysis_prompt(
         data
     )
 
+
     raw_text = ""
 
+
+    # ========================================================
+    # RETRY
+    # ========================================================
+
     max_attempts = 3
+
 
     for attempt in range(
         1,
@@ -429,110 +898,187 @@ def analyze_with_ai(
 
         try:
 
-response = client.chat.completions.create(
-    model=GROQ_MODEL,
+            # =================================================
+            # GROQ REQUEST
+            # =================================================
 
-    messages=[
-        {
-            "role": "system",
-            "content": (
-                "Kamu adalah analis teknikal saham IDX profesional. "
-                "Analisis data teknikal yang diberikan. "
-                "Jawab HANYA dalam JSON valid. "
-                "Jangan memberikan teks di luar JSON."
+            response = client.chat.completions.create(
+
+                model=GROQ_MODEL,
+
+                messages=[
+
+                    {
+                        "role": "system",
+
+                        "content": (
+                            "Kamu adalah analis "
+                            "teknikal saham IDX "
+                            "profesional. "
+
+                            "Analisis data "
+                            "teknikal yang "
+                            "diberikan. "
+
+                            "Jawab HANYA "
+                            "dalam JSON valid. "
+
+                            "Jangan memberikan "
+                            "teks di luar JSON."
+                        )
+                    },
+
+                    {
+                        "role": "user",
+
+                        "content": prompt
+                    }
+
+                ],
+
+                # GPT-OSS reasoning
+                reasoning_effort="low",
+
+                # Paksa JSON
+                response_format={
+                    "type": "json_object"
+                },
+
+                temperature=0.1,
+
+                # Ruang reasoning + output
+                max_completion_tokens=3000
             )
-        },
-        {
-            "role": "user",
-            "content": prompt
-        }
-    ],
 
-    # GPT-OSS adalah reasoning model.
-    # LOW membuat reasoning tidak menghabiskan
-    # seluruh token sebelum menghasilkan jawaban.
-    reasoning_effort="low",
 
-    # Paksa output menjadi JSON.
-    response_format={
-        "type": "json_object"
-    },
+            # =================================================
+            # GET RESPONSE
+            # =================================================
 
-    # Jangan terlalu tinggi supaya cepat.
-    temperature=0.1,
-
-    # Beri ruang untuk reasoning + JSON.
-    max_completion_tokens=3000
-)
             raw_text = (
+
                 response
                 .choices[0]
                 .message
                 .content
+
                 or ""
+
             )
-if not raw_text.strip():
 
-    logger.error(
-        "[%s] Groq mengembalikan content kosong.",
-        ticker
-    )
 
-    message = response.choices[0].message
+            # =================================================
+            # CHECK EMPTY RESPONSE
+            # =================================================
 
-    logger.error(
-        "[%s] Response message: %s",
-        ticker,
-        message
-    )
+            if not raw_text.strip():
 
-    _send_reply(
-        _chat_id,
-        _reply_fn,
-        "⚠️ <b>AI tidak menghasilkan teks jawaban.</b>\n"
-        "Bot akan mencoba lagi pada request berikutnya."
-    )
+                logger.error(
+                    "[%s] Groq mengembalikan "
+                    "content kosong.",
+                    ticker
+                )
 
-    return None
+
+                message = (
+                    response
+                    .choices[0]
+                    .message
+                )
+
+
+                logger.error(
+                    "[%s] Response message: %s",
+                    ticker,
+                    message
+                )
+
+
+                _send_reply(
+                    _chat_id,
+                    _reply_fn,
+
+                    "⚠️ <b>AI tidak menghasilkan "
+                    "teks jawaban.</b>\n\n"
+                    "Coba perintah tersebut "
+                    "sekali lagi."
+                )
+
+
+                return None
+
+
+            # =================================================
+            # CLEAN RESPONSE
+            # =================================================
 
             cleaned = _clean_json_text(
                 raw_text
             )
 
+
+            # =================================================
+            # PARSE JSON
+            # =================================================
+
             result = json.loads(
                 cleaned
             )
+
+
+            # =================================================
+            # VALIDATE OBJECT
+            # =================================================
 
             if not isinstance(
                 result,
                 dict
             ):
+
                 raise ValueError(
-                    "Response AI bukan JSON object."
+                    "Response AI bukan "
+                    "JSON object."
                 )
 
-            result["ticker"] = ticker
+
+            # =================================================
+            # FORCE TICKER
+            # =================================================
+
+            result["ticker"] = (
+                ticker
+            )
+
+
+            # =================================================
+            # SCORE
+            # =================================================
 
             score = result.get(
                 "score"
             )
 
-            signal = result.get(
-                "signal"
-            )
 
             if score is not None:
 
                 try:
 
                     result["score"] = max(
+
                         0,
+
                         min(
+
                             100,
+
                             int(
-                                float(score)
+                                float(
+                                    score
+                                )
                             )
+
                         )
+
                     )
 
                 except (
@@ -542,95 +1088,225 @@ if not raw_text.strip():
 
                     result["score"] = 0
 
-            if signal not in (
+            else:
+
+                result["score"] = 0
+
+
+            # =================================================
+            # SIGNAL
+            # =================================================
+
+            signal = result.get(
+                "signal"
+            )
+
+
+            allowed_signals = (
+
                 "STRONG_BUY",
+
                 "BUY",
+
                 "NEUTRAL",
+
                 "AVOID"
-            ):
+
+            )
+
+
+            if signal not in allowed_signals:
 
                 result["signal"] = (
                     "NEUTRAL"
                 )
 
-            _rate_limited_until = 0.0
 
-            logger.info(
-                "[%s] Groq Score: %s/100 — %s | model=%s",
-                ticker,
-                result.get("score"),
-                result.get("signal"),
-                GROQ_MODEL
+            # =================================================
+            # CONFIDENCE
+            # =================================================
+
+            confidence = result.get(
+                "confidence"
             )
 
+
+            if confidence not in (
+                "HIGH",
+                "MEDIUM",
+                "LOW"
+            ):
+
+                result["confidence"] = (
+                    "MEDIUM"
+                )
+
+
+            # =================================================
+            # SUCCESS
+            # =================================================
+
+            _rate_limited_until = 0.0
+
+
+            logger.info(
+
+                "[%s] Groq Score: %s/100 | "
+                "Signal: %s | "
+                "Confidence: %s | "
+                "Model: %s",
+
+                ticker,
+
+                result.get(
+                    "score"
+                ),
+
+                result.get(
+                    "signal"
+                ),
+
+                result.get(
+                    "confidence"
+                ),
+
+                GROQ_MODEL
+
+            )
+
+
             return result
+
+
+        # ====================================================
+        # JSON ERROR
+        # ====================================================
 
         except json.JSONDecodeError as e:
 
             logger.error(
+
                 "[%s] Gagal parse JSON AI: %s | Raw: %s",
+
                 ticker,
+
                 e,
-                raw_text[:500]
+
+                raw_text[:2000]
+
             )
+
 
             _send_reply(
+
                 _chat_id,
+
                 _reply_fn,
-                "⚠️ <b>AI mengirim format hasil "
-                "yang tidak valid.</b>\n"
-                "Coba perintah tersebut sekali lagi."
+
+                "⚠️ <b>AI mengirim format "
+                "hasil yang tidak valid.</b>\n\n"
+                "Coba perintah tersebut "
+                "sekali lagi."
+
             )
 
+
             return None
+
+
+        # ====================================================
+        # GENERAL ERROR
+        # ====================================================
 
         except Exception as e:
 
             status = getattr(
+
                 e,
+
                 "status_code",
+
                 None
+
             )
+
 
             logger.error(
-                "[%s] Groq error attempt %s/%s | "
+
+                "[%s] Groq error "
+                "attempt %s/%s | "
                 "status=%s | %s",
+
                 ticker,
+
                 attempt,
+
                 max_attempts,
+
                 status,
+
                 e
+
             )
 
-            # RATE LIMIT
-            if _is_rate_limit_error(e):
+
+            # ================================================
+            # RATE LIMIT 429
+            # ================================================
+
+            if _is_rate_limit_error(
+                e
+            ):
 
                 retry_after = (
-                    _get_retry_after(e)
+                    _get_retry_after(
+                        e
+                    )
                 )
+
 
                 if retry_after is None:
 
                     retry_after = min(
+
                         60.0,
+
                         2 ** attempt
+
                     )
 
+
                 _rate_limited_until = (
+
                     time.time()
-                    + retry_after
+                    +
+                    retry_after
+
                 )
+
 
                 logger.warning(
-                    "[%s] RATE LIMIT 429. "
+
+                    "[%s] RATE LIMIT 429 | "
                     "retry-after=%ss",
+
                     ticker,
+
                     retry_after
+
                 )
 
+
+                # Retry jika waktunya pendek
+
                 if (
+
                     attempt < max_attempts
-                    and retry_after <= 30
+
+                    and
+
+                    retry_after <= 30
+
                 ):
 
                     time.sleep(
@@ -639,131 +1315,246 @@ if not raw_text.strip():
 
                     continue
 
+
+                # Inform Telegram
+
                 if retry_after >= 60:
 
-                    waktu = (
-                        f"{int(retry_after // 60)}m "
-                        f"{int(retry_after % 60)}s"
+                    minutes = int(
+                        retry_after // 60
+                    )
+
+                    seconds = int(
+                        retry_after % 60
+                    )
+
+                    wait_text = (
+                        f"{minutes}m "
+                        f"{seconds}s"
                     )
 
                 else:
 
-                    waktu = (
+                    wait_text = (
                         f"{int(retry_after)} detik"
                     )
 
+
                 _send_reply(
+
                     _chat_id,
+
                     _reply_fn,
+
                     "⚠️ <b>Groq API sedang "
                     "rate limit.</b>\n\n"
+
                     f"Groq meminta menunggu "
-                    f"sekitar <b>{waktu}</b> "
+                    f"sekitar <b>{wait_text}</b> "
                     "sebelum request berikutnya."
+
                 )
+
 
                 return None
 
-            # API KEY
+
+            # ================================================
+            # INVALID API KEY
+            # ================================================
+
+            error_text = str(
+                e
+            ).lower()
+
+
             if (
+
                 status == 401
-                or "authentication"
-                in str(e).lower()
-                or "invalid api key"
-                in str(e).lower()
+
+                or
+
+                "authentication"
+                in error_text
+
+                or
+
+                "invalid api key"
+                in error_text
+
             ):
 
                 _send_reply(
+
                     _chat_id,
+
                     _reply_fn,
-                    "❌ <b>Groq API Key bermasalah.</b>\n\n"
-                    "Periksa "
+
+                    "❌ <b>Groq API Key "
+                    "bermasalah.</b>\n\n"
+
+                    "Periksa variable "
                     "<code>GROQ_API_KEY</code> "
-                    "di Railway → Variables."
+                    "di Railway."
+
                 )
+
 
                 return None
 
-            # MODEL
+
+            # ================================================
+            # MODEL NOT FOUND
+            # ================================================
+
             if (
+
                 status == 404
+
                 or (
+
                     "model"
-                    in str(e).lower()
-                    and "not found"
-                    in str(e).lower()
+                    in error_text
+
+                    and
+
+                    "not found"
+                    in error_text
+
                 )
+
             ):
 
                 _send_reply(
+
                     _chat_id,
+
                     _reply_fn,
-                    "❌ <b>Model Groq tidak ditemukan.</b>\n\n"
+
+                    "❌ <b>Model Groq "
+                    "tidak ditemukan.</b>\n\n"
+
                     f"Model saat ini: "
                     f"<code>{GROQ_MODEL}</code>"
+
                 )
+
 
                 return None
 
+
+            # ================================================
             # TEMPORARY ERROR
+            # ================================================
+
             if (
-                _is_temporary_error(e)
-                and attempt < max_attempts
+
+                _is_temporary_error(
+                    e
+                )
+
+                and
+
+                attempt < max_attempts
+
             ):
 
                 delay = min(
+
                     8.0,
-                    2 ** (attempt - 1)
+
+                    2 ** (
+                        attempt - 1
+                    )
+
                 )
 
+
                 logger.warning(
-                    "[%s] Temporary error, "
-                    "retry %ss...",
+
+                    "[%s] Temporary error. "
+                    "Retry dalam %ss...",
+
                     ticker,
+
                     delay
+
                 )
+
 
                 time.sleep(
                     delay
                 )
 
+
                 continue
 
+
+            # ================================================
+            # OTHER ERROR
+            # ================================================
+
             _send_reply(
+
                 _chat_id,
+
                 _reply_fn,
-                "❌ <b>Groq gagal memproses analisis.</b>\n\n"
+
+                "❌ <b>Groq gagal "
+                "memproses analisis.</b>\n\n"
+
                 f"Status: "
-                f"<code>{status or 'unknown'}</code>\n"
-                "Cek log Railway untuk detail error."
+                f"<code>{status or 'unknown'}</code>\n\n"
+
+                "Cek log Railway untuk "
+                "detail error."
+
             )
+
 
             return None
 
+
     return None
 
+
+# ============================================================
+# ALERT FILTER
+# ============================================================
 
 def should_send_alert(
     ai_result: dict
 ) -> bool:
 
     if not ai_result:
+
         return False
+
 
     score = ai_result.get(
         "score",
         0
     )
 
+
     signal = ai_result.get(
         "signal",
         "NEUTRAL"
     )
 
+
     return (
+
         score >= MIN_SCORE
-        and signal in (
+
+        and
+
+        signal in (
+
             "STRONG_BUY",
+
             "BUY"
+
         )
+
     )
