@@ -195,7 +195,7 @@ def handle_cek(chat_id, ticker):
 
     reply(chat_id, "🤖 Data siap, AI sedang menganalisa...")
 
-    ai = analyze_with_ai(tech)
+    ai = analyze_with_ai(     tech,     _chat_id=chat_id,     _reply_fn=reply )
     if ai is None:
         reply(chat_id, f"❌ AI gagal menganalisa {ticker}. Coba lagi.")
         return
@@ -260,7 +260,7 @@ def handle_scan(chat_id, tickers=None, label="Watchlist"):
             continue
 
         masuk_ai += 1
-        ai = analyze_with_ai(tech)
+        ai = analyze_with_ai(     tech,     _chat_id=chat_id,     _reply_fn=reply )
         if ai is None:
             continue
 
