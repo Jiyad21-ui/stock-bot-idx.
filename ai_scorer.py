@@ -429,35 +429,41 @@ def analyze_with_ai(
 
         try:
 
-            response = client.chat.completions.create(
+response = client.chat.completions.create(
+    model=GROQ_MODEL,
 
-                model=GROQ_MODEL,
-
-                messages=[
-
-                    {
-                        "role": "system",
-
-                        "content": (
-                            "Kamu analis teknikal "
-                            "saham IDX profesional. "
-                            "Jawab HANYA dengan "
-                            "JSON valid."
-                        )
-                    },
-
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-
-                ],
-
-                temperature=0.1,
-
-                max_completion_tokens=1500
+    messages=[
+        {
+            "role": "system",
+            "content": (
+                "Kamu adalah analis teknikal saham IDX profesional. "
+                "Analisis data teknikal yang diberikan. "
+                "Jawab HANYA dalam JSON valid. "
+                "Jangan memberikan teks di luar JSON."
             )
+        },
+        {
+            "role": "user",
+            "content": prompt
+        }
+    ],
 
+    # GPT-OSS adalah reasoning model.
+    # LOW membuat reasoning tidak menghabiskan
+    # seluruh token sebelum menghasilkan jawaban.
+    reasoning_effort="low",
+
+    # Paksa output menjadi JSON.
+    response_format={
+        "type": "json_object"
+    },
+
+    # Jangan terlalu tinggi supaya cepat.
+    temperature=0.1,
+
+    # Beri ruang untuk reasoning + JSON.
+    max_completion_tokens=3000
+)
             raw_text = (
                 response
                 .choices[0]
